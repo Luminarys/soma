@@ -39,7 +39,7 @@ class Torrent {
   constructor(id) {
     this.id = id;
     this.int = setInterval(() => {
-      fetch(`http://localhost:8412/torrent/info/${this.id}`)
+        fetch(`http://localhost:8412/torrent/${this.id}/info`)
         .then(resp => resp.json())
         .then(({TorrentInfo}) => this.setInfo(TorrentInfo))
         .catch((e) => clearInterval(this.int));
