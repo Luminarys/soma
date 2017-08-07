@@ -5,13 +5,20 @@ import DevTools from 'mobx-react-devtools';
 
 function toInt(n){ return Math.round(Number(n)); };
 
+function bytesToSize(bytes) {
+   var sizes = ['Bytes', 'KiB', 'MiB', 'GiB', 'TiB'];
+   if (bytes == 0) return '0 byte';
+   var i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)));
+   return (bytes / Math.pow(1024, i)).toFixed(2) + ' ' + sizes[i];
+};
+
 @observer
 class Torrent extends Component {
   render() {
     const t = this.props.torrent;
     return (
       <div>
-        {t.name} : {t.status}
+        {t.name} - {t.status} - {`DL ${bytesToSize(t.rate_down)}/s`} - {`UL ${bytesToSize(t.rate_up)}/s`}
         <ProgressBar now={t.progress * 100} label={`${(t.progress * 100).toFixed(2)}%`}/>
       </div>
     );
