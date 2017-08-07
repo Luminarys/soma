@@ -9,11 +9,10 @@ function toInt(n){ return Math.round(Number(n)); };
 class Torrent extends Component {
   render() {
     const t = this.props.torrent;
-    const perc_done = toInt(100 * t.downloaded/t.size);
     return (
       <div>
-        {t.title} : {t.status}
-        <ProgressBar now={perc_done} label={`${perc_done}%`}/>
+        {t.name} : {t.status}
+        <ProgressBar now={t.progress * 100} label={`${(t.progress * 100).toFixed(2)}%`}/>
       </div>
     );
   }
@@ -29,15 +28,15 @@ class App extends Component {
   }
 
   render() {
-    let torrents = this.props.appState.torrents.map((t) => {
-      return <Torrent torrent={t} key={t.id} />;
+    let torrents = this.props.appState.tids.map(id => {
+      return <Torrent torrent={this.props.appState.resources[id]} key={id} />;
     });
     return (
       <div>
         <Button bsStyle='primary' onClick={this.addTorrent}>
           Add Torrent
         </Button>
-        <input 
+        <input
           id='torrent-ul' className='hidden' type='file' label='Upload' accept='.torrent' 
           onChange={this.handleFile} 
         />
@@ -49,9 +48,8 @@ class App extends Component {
   }
 
   upload(ev) {
-    fetch('http://localhost:8412/torrent', { method: 'POST', body: ev.currentTarget.result})
-      .then(resp => resp.json())
-      .then(success => this.props.appState.getData());
+    console.log(ev)
+    this.props.appState.uploadTorrent(ev.target.result)
   }
 
   handleFile(ev) {
@@ -59,14 +57,10 @@ class App extends Component {
     const reader = new FileReader();
     reader.onload = this.upload;
     reader.readAsArrayBuffer(file);
-    console.log(file);
   }
 
   addTorrent() {
     document.getElementById('torrent-ul').click();
-  }
-
-  removeTorrent() {
   }
 };
 
