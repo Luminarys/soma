@@ -1,4 +1,4 @@
 soma
 =====================
 
-This one isnt drugs
+PoC web client for [Synapse](https://github.com/Luminarys/synapse)
