@@ -8,6 +8,7 @@ class AppState {
   ws = null;
   serial = 0;
   torrent_serial = 0;
+  server_serial = 0;
   transfers = {};
 
   constructor() {
@@ -40,6 +41,14 @@ class AppState {
       serial: ts,
       criteria: [],
     }));
+    const sts = this.nextSerial();
+    this.server_serial = sts;
+    this.ws.send(JSON.stringify({
+      type: "FILTER_SUBSCRIBE",
+      serial: sts,
+      kind: "server",
+      criteria: [],
+    }));
   }
 
   wsMsg(evt) {
@@ -52,6 +61,13 @@ class AppState {
             this.tids.push(id);
           })
 
+          this.ws.send(JSON.stringify({
+            type: "SUBSCRIBE",
+            serial: this.nextSerial(),
+            ids: msg.ids,
+          }));
+        } else if (msg.serial == this.server_serial) {
+          this.resources[msg.ids[0]] = new Server(msg.ids[0])
           this.ws.send(JSON.stringify({
             type: "SUBSCRIBE",
             serial: this.nextSerial(),
@@ -86,9 +102,23 @@ class AppState {
   }
 }
 
+class Server {
+  @observable throttle_down;
+  @observable throttle_up;
+  @observable rate_up;
+  @observable rate_down;
+  id
+
+  constructor(id) {
+    this.id = id
+  }
+}
+
 class Torrent {
   @observable transferred_down;
   @observable transferred_up;
+  @observable throttle_down;
+  @observable throttle_up;
   @observable rate_up;
   @observable rate_down;
   @observable progress;
