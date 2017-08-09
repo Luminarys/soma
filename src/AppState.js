@@ -1,54 +1,62 @@
 import { observable } from 'mobx';
 import fetch from 'isomorphic-fetch';
 
+class Conn {
+  conn;
+  serial = 0;
+
+  constructor() {
+    this.conn = new WebSocket("ws://127.0.0.1:8412")
+  }
+
+  sendMsg(msg) {
+    msg.serial = this.nextSerial()
+    this.conn.send(JSON.stringify(msg))
+    return msg.serial
+  }
+
+  nextSerial() {
+    this.serial += 1
+    return this.serial - 1
+  }
+}
+
 class AppState {
   @observable resources = {};
   @observable tids = [];
   counter = 0;
   ws = null;
-  serial = 0;
   torrent_serial = 0;
   server_serial = 0;
+  server_id = 0;
   transfers = {};
 
   constructor() {
-    this.ws = new WebSocket("ws://127.0.0.1:8412")
-    this.ws.onmessage = this.wsMsg.bind(this)
-    this.ws.onopen = this.wsOpen.bind(this)
+    this.ws = new Conn()
+    this.ws.conn.onmessage = this.wsMsg.bind(this)
+    this.ws.conn.onopen = this.wsOpen.bind(this)
   }
 
   uploadTorrent(file) {
-    const ts = this.nextSerial();
-    this.transfers[ts] = file;
-    this.ws.send(JSON.stringify({
+    const ts = this.ws.sendMsg({
       type: "UPLOAD_TORRENT",
-      serial: ts,
       size: file.byteLength,
-    }))
-  }
-
-  nextSerial() {
-    this.serial += 1;
-    return this.serial - 1;
+    })
+    this.transfers[ts] = file;
   }
 
   wsOpen(evt) {
-    const ts = this.nextSerial();
-    this.torrent_serial = ts;
     // Subscribe to all torrent resources
-    this.ws.send(JSON.stringify({
+    this.torrent_serial = this.ws.sendMsg({
       type: "FILTER_SUBSCRIBE",
-      serial: ts,
       criteria: [],
-    }));
-    const sts = this.nextSerial();
-    this.server_serial = sts;
-    this.ws.send(JSON.stringify({
+    });
+
+    this.server_serial = this.ws.sendMsg({
       type: "FILTER_SUBSCRIBE",
-      serial: sts,
       kind: "server",
       criteria: [],
-    }));
+    })
   }
 
   wsMsg(evt) {
@@ -56,30 +64,23 @@ class AppState {
     switch (msg.type) {
       case "RESOURCES_EXTANT":
         if (msg.serial == this.torrent_serial) {
-          msg.ids.map(id => {
-            this.resources[id] = new Torrent(id)
-            this.tids.push(id);
-          })
-
-          this.ws.send(JSON.stringify({
-            type: "SUBSCRIBE",
-            serial: this.nextSerial(),
-            ids: msg.ids,
-          }));
+          this.torrentExtant(msg);
         } else if (msg.serial == this.server_serial) {
-          this.resources[msg.ids[0]] = new Server(msg.ids[0])
-          this.ws.send(JSON.stringify({
-            type: "SUBSCRIBE",
-            serial: this.nextSerial(),
-            ids: msg.ids,
-          }));
+          this.serverExtant(msg);
         } else {
           console.log("Bad serial: " + msg.serial);
         }
         break;
       case "RESOURCES_REMOVED":
         if (msg.serial == this.torrent_serial) {
-          // Remove torrent.
+          for (const i in msg.ids) {
+            const id = msg.ids[i]
+            const idx = this.tids.indexOf(id)
+            if (idx > -1) {
+              this.tids.splice(idx, 1);
+            }
+            delete this.resources[id]
+          }
         }
         break;
       case "UPDATE_RESOURCES":
@@ -99,6 +100,27 @@ class AppState {
       default:
         break;
     }
+  }
+
+  torrentExtant(msg) {
+    msg.ids.map(id => {
+      this.resources[id] = new Torrent(id, this.ws)
+      this.tids.push(id);
+    })
+
+    this.ws.sendMsg({
+      type: "SUBSCRIBE",
+      ids: msg.ids,
+    });
+  }
+
+  serverExtant(msg) {
+    this.server_id = msg.ids[0];
+    this.resources[msg.ids[0]] = new Server(msg.ids[0])
+    this.ws.sendMsg({
+      type: "SUBSCRIBE",
+      ids: msg.ids,
+    });
   }
 }
 
@@ -127,9 +149,28 @@ class Torrent {
   name;
   pieces;
   piece_size;
+  ws = null;
 
-  constructor(id) {
+  constructor(id, ws) {
     this.id = id;
+    this.ws = ws;
+  }
+
+  toggleStatus() {
+    this.ws.sendMsg({
+      type: "UPDATE_RESOURCE",
+      "resource": {
+        "id": this.id,
+        "status": "paused"
+      }
+    })
+  }
+
+  remove() {
+    this.ws.sendMsg({
+      type: "REMOVE_RESOURCE",
+      "id": this.id,
+    })
   }
 }
 
