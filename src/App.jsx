@@ -13,6 +13,22 @@ function bytesToSize(bytes) {
 };
 
 @observer
+class Peer extends Component {
+  constructor(props) {
+    super(props);
+  }
+
+  render() {
+    const p = this.props.peer;
+    return (
+      <div>
+        Peer - {`DL ${bytesToSize(p.rate_down)}/s`} - {`UL ${bytesToSize(p.rate_up)}/s`}
+      </div>
+    );
+  }
+}
+
+@observer
 class Torrent extends Component {
   constructor(props) {
     super(props);
@@ -34,6 +50,10 @@ class Torrent extends Component {
     if (t.status == "paused") {
       ctrl_btn = <Button onClick={this.toggleStatus} bsStyle="success">Resume</Button>;
     }
+    let peers = [];
+    this.props.app.torrent_peers[t.id].forEach(id => {
+       peers.push(<Peer peer={this.props.app.resources[id]} key={id} />);
+    });
     return (
       <div>
         <ButtonToolbar>
@@ -43,6 +63,7 @@ class Torrent extends Component {
         <br />
         {t.name} - {t.status} - {`DL ${bytesToSize(t.rate_down)}/s`} - {`UL ${bytesToSize(t.rate_up)}/s`}
         <ProgressBar now={t.progress * 100} label={`${(t.progress * 100).toFixed(2)}%`}/>
+        {peers}
       </div>
     );
   }
@@ -59,7 +80,11 @@ class App extends Component {
 
   render() {
     let torrents = this.props.appState.tids.map(id => {
-      return <Torrent torrent={this.props.appState.resources[id]} key={id} />;
+      return <Torrent
+        torrent={this.props.appState.resources[id]}
+        app={this.props.appState}
+        key={id}
+        />;
     });
     const server = this.props.appState.resources[this.props.appState.server_id];
     let ul = 0, dl = 0;
@@ -74,7 +99,7 @@ class App extends Component {
         </Button>
         <br />
         <br />
-        {`DL ${dl} - UL ${ul}`}
+        {`DL ${dl}/s - UL ${ul}/s`}
         <br />
         <input
           id='torrent-ul' className='hidden' type='file' label='Upload' accept='.torrent'

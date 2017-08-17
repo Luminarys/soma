@@ -30,6 +30,8 @@ class AppState {
   server_serial = 0;
   server_id = 0;
   transfers = {};
+  torrent_peer_serials = {};
+  @observable torrent_peers = {};
 
   constructor() {
     this.ws = new Conn()
@@ -67,11 +69,15 @@ class AppState {
           this.torrentExtant(msg);
         } else if (msg.serial == this.server_serial) {
           this.serverExtant(msg);
-        } else {
-          console.log("Bad serial: " + msg.serial);
+        } else if (msg.serial in this.torrent_peer_serials) {
+          this.peerExtant(msg);
         }
         break;
       case "RESOURCES_REMOVED":
+        for (const i in msg.ids) {
+          const id = msg.ids[i]
+          delete this.resources[id]
+        }
         if (msg.serial == this.torrent_serial) {
           for (const i in msg.ids) {
             const id = msg.ids[i]
@@ -79,7 +85,13 @@ class AppState {
             if (idx > -1) {
               this.tids.splice(idx, 1);
             }
-            delete this.resources[id]
+          }
+        }
+        if (msg.serial in this.torrent_peer_serials) {
+          const tid = this.torrent_peer_serials[msg.serial];
+          for (const i in msg.ids) {
+            const id = msg.ids[i]
+            this.torrent_peers[tid].delete(id);
           }
         }
         break;
@@ -104,7 +116,16 @@ class AppState {
 
   torrentExtant(msg) {
     msg.ids.map(id => {
-      this.resources[id] = new Torrent(id, this.ws)
+      const ps = this.ws.sendMsg({
+        type: "FILTER_SUBSCRIBE",
+        kind: "peer",
+        criteria: [
+          { field: "torrent_id", op: "==", value: id}
+        ],
+      });
+      this.torrent_peer_serials[ps] = id;
+      this.torrent_peers[id] = new Set();
+      this.resources[id] = new Torrent(id, this.ws, ps)
       this.tids.push(id);
     })
 
@@ -122,6 +143,18 @@ class AppState {
       ids: msg.ids,
     });
   }
+
+  peerExtant(msg) {
+    const tid = this.torrent_peer_serials[msg.serial];
+    msg.ids.map(id => {
+      this.resources[id] = new Peer(id)
+      this.torrent_peers[tid].add(id);
+    })
+    this.ws.sendMsg({
+      type: "SUBSCRIBE",
+      ids: msg.ids,
+    });
+  }
 }
 
 class Server {
@@ -129,6 +162,19 @@ class Server {
   @observable throttle_up;
   @observable rate_up;
   @observable rate_down;
+  id
+
+  constructor(id) {
+    this.id = id
+  }
+}
+
+class Peer {
+  @observable rate_up;
+  @observable rate_down;
+  torrent_id;
+  client_id;
+  ip;
   id
 
   constructor(id) {
@@ -150,10 +196,12 @@ class Torrent {
   pieces;
   piece_size;
   ws = null;
+  peer_serial = 0;
 
-  constructor(id, ws) {
+  constructor(id, ws, ps) {
     this.id = id;
     this.ws = ws;
+    this.peer_serial = ps;
   }
 
   toggleStatus() {
