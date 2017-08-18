@@ -24,19 +24,24 @@ class Conn {
 class AppState {
   @observable resources = {};
   @observable tids = [];
+  @observable torrent_peers = {};
+  @observable torrent_files = {};
   counter = 0;
   ws = null;
   torrent_serial = 0;
   server_serial = 0;
   server_id = 0;
-  transfers = {};
+  torrent_uploads = {};
+  file_downloads = {};
   torrent_peer_serials = {};
-  @observable torrent_peers = {};
+  torrent_file_serials = {};
 
   constructor() {
     this.ws = new Conn()
     this.ws.conn.onmessage = this.wsMsg.bind(this)
     this.ws.conn.onopen = this.wsOpen.bind(this)
+    this.downloadFile = this.downloadFile.bind(this)
+    this.uploadTorrent = this.uploadTorrent.bind(this)
   }
 
   uploadTorrent(file) {
@@ -44,7 +49,15 @@ class AppState {
       type: "UPLOAD_TORRENT",
       size: file.byteLength,
     })
-    this.transfers[ts] = file;
+    this.torrent_uploads[ts] = file;
+  }
+
+  downloadFile(id) {
+    const ts = this.ws.sendMsg({
+      type: "DOWNLOAD_FILE",
+      id: id,
+    })
+    this.file_downloads[ts] = id;
   }
 
   wsOpen(evt) {
@@ -71,6 +84,8 @@ class AppState {
           this.serverExtant(msg);
         } else if (msg.serial in this.torrent_peer_serials) {
           this.peerExtant(msg);
+        } else if (msg.serial in this.torrent_file_serials) {
+          this.fileExtant(msg);
         }
         break;
       case "RESOURCES_REMOVED":
@@ -104,9 +119,14 @@ class AppState {
         })
         break;
       case "TRANSFER_OFFER":
-        let headers = new Headers();
-        headers.append("Authorization", "Bearer " + msg.token);
-        fetch('http://localhost:8412/', { method: 'POST', body: this.transfers[msg.serial], headers: headers });
+        if (msg.serial in this.torrent_uploads) {
+          let headers = new Headers();
+          headers.append("Authorization", "Bearer " + msg.token);
+          fetch('http://localhost:8412/', { method: 'POST', body: this.torrent_uploads[msg.serial], headers: headers });
+        } else if (msg.serial in this.file_downloads) {
+          const url = 'http://localhost:8412/?token=' + msg.token
+          window.open(url, '_blank');
+        }
         break;
 
       default:
@@ -123,9 +143,23 @@ class AppState {
           { field: "torrent_id", op: "==", value: id}
         ],
       });
+      const fs = this.ws.sendMsg({
+        type: "FILTER_SUBSCRIBE",
+        kind: "file",
+        criteria: [
+          { field: "torrent_id", op: "==", value: id}
+        ],
+      });
+
       this.torrent_peer_serials[ps] = id;
       this.torrent_peers[id] = new Set();
+
+      this.torrent_file_serials[fs] = id;
+      this.torrent_files[id] = new Set();
+
       this.resources[id] = new Torrent(id, this.ws, ps)
+
+
       this.tids.push(id);
     })
 
@@ -155,6 +189,18 @@ class AppState {
       ids: msg.ids,
     });
   }
+
+  fileExtant(msg) {
+    const tid = this.torrent_file_serials[msg.serial];
+    msg.ids.map(id => {
+      this.resources[id] = new File(id)
+      this.torrent_files[tid].add(id);
+    })
+    this.ws.sendMsg({
+      type: "SUBSCRIBE",
+      ids: msg.ids,
+    });
+  }
 }
 
 class Server {
@@ -163,6 +209,20 @@ class Server {
   @observable rate_up;
   @observable rate_down;
   id
+
+  constructor(id) {
+    this.id = id
+  }
+}
+
+class File {
+  @observable progress
+  @observable progress
+  @observable availability
+
+  id
+  torrent_id
+  path
 
   constructor(id) {
     this.id = id

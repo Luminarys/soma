@@ -13,6 +13,28 @@ function bytesToSize(bytes) {
 };
 
 @observer
+class File extends Component {
+  constructor(props) {
+    super(props);
+    console.log(props);
+    this.download = this.download.bind(this)
+  }
+
+  download() {
+    this.props.download(this.props.file.id)
+  }
+
+  render() {
+    const f = this.props.file;
+    return (
+      <div>
+        <Button bsStyle='link' onClick={this.download}>{f.path}</Button> {`progress: ${f.progress}`}
+      </div>
+    );
+  }
+}
+
+@observer
 class Peer extends Component {
   constructor(props) {
     super(props);
@@ -54,6 +76,11 @@ class Torrent extends Component {
     this.props.app.torrent_peers[t.id].forEach(id => {
        peers.push(<Peer peer={this.props.app.resources[id]} key={id} />);
     });
+
+    let files = [];
+    this.props.app.torrent_files[t.id].forEach(id => {
+       peers.push(<File file={this.props.app.resources[id]} key={id} download={this.props.app.downloadFile} />);
+    });
     return (
       <div>
         <ButtonToolbar>
@@ -64,6 +91,7 @@ class Torrent extends Component {
         {t.name} - {t.status} - {`DL ${bytesToSize(t.rate_down)}/s`} - {`UL ${bytesToSize(t.rate_up)}/s`}
         <ProgressBar now={t.progress * 100} label={`${(t.progress * 100).toFixed(2)}%`}/>
         {peers}
+        {files}
       </div>
     );
   }
