@@ -12,6 +12,10 @@ function bytesToSize(bytes) {
   return (bytes / Math.pow(1024, i)).toFixed(2) + ' ' + sizes[i];
 };
 
+function toPerc(n) {
+  return `${(n * 100).toFixed(2)}%`
+}
+
 @observer
 class File extends Component {
   constructor(props) {
@@ -28,7 +32,7 @@ class File extends Component {
     const f = this.props.file;
     return (
       <div>
-        <Button bsStyle='link' onClick={this.download}>{f.path}</Button> {`progress: ${f.progress}`}
+        <Button bsStyle='link' onClick={this.download}>{f.path}</Button> {`progress: ${toPerc(f.progress)}`}
       </div>
     );
   }
@@ -89,7 +93,7 @@ class Torrent extends Component {
         </ButtonToolbar>
         <br />
         {t.name} - {t.status} - {`DL ${bytesToSize(t.rate_down)}/s`} - {`UL ${bytesToSize(t.rate_up)}/s`}
-        <ProgressBar now={t.progress * 100} label={`${(t.progress * 100).toFixed(2)}%`}/>
+        <ProgressBar now={t.progress * 100} label={toPerc(t.progress)}/>
         {peers}
         {files}
       </div>
