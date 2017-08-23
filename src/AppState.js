@@ -6,7 +6,7 @@ class Conn {
   serial = 0;
 
   constructor() {
-    this.conn = new WebSocket("ws://127.0.0.1:8412")
+    this.conn = new WebSocket("ws://127.0.0.1:8412?password=hackme")
   }
 
   sendMsg(msg) {
@@ -265,13 +265,17 @@ class Torrent {
   }
 
   toggleStatus() {
-    this.ws.sendMsg({
-      type: "UPDATE_RESOURCE",
-      "resource": {
-        "id": this.id,
-        "status": "paused"
-      }
-    })
+    if (this.status == "paused") {
+      this.ws.sendMsg({
+        type: "RESUME_TORRENT",
+        id: this.id,
+      })
+    } else {
+      this.ws.sendMsg({
+        type: "PAUSE_TORRENT",
+        id: this.id,
+      })
+    }
   }
 
   remove() {
