@@ -42,6 +42,7 @@ class AppState {
     this.ws.conn.onopen = this.wsOpen.bind(this)
     this.downloadFile = this.downloadFile.bind(this)
     this.uploadTorrent = this.uploadTorrent.bind(this)
+    this.setPrio = this.setPrio.bind(this)
   }
 
   uploadTorrent(file) {
@@ -58,6 +59,16 @@ class AppState {
       id: id,
     })
     this.file_downloads[ts] = id;
+  }
+
+  setPrio(id, prio) {
+    this.ws.sendMsg({
+      type: "UPDATE_RESOURCE",
+      resource: {
+        id: id,
+        priority: prio,
+      },
+    })
   }
 
   wsOpen(evt) {
@@ -217,7 +228,7 @@ class Server {
 
 class File {
   @observable progress
-  @observable progress
+  @observable priority
   @observable availability
 
   id

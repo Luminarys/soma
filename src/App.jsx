@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { ButtonToolbar, Input, Button, ProgressBar } from 'react-bootstrap';
+import { ButtonToolbar, DropdownButton, MenuItem, Input, Button, ProgressBar } from 'react-bootstrap';
 import { observer } from 'mobx-react';
 import DevTools from 'mobx-react-devtools';
 
@@ -22,6 +22,7 @@ class File extends Component {
     super(props);
     console.log(props);
     this.download = this.download.bind(this)
+    this.setPrio = this.setPrio.bind(this)
   }
 
   download() {
@@ -30,11 +31,32 @@ class File extends Component {
 
   render() {
     const f = this.props.file;
+    const prios = Array.from(new Array(6), (_, i) => 
+      <MenuItem
+        key={i}
+        eventKey={i}
+        active={f.priority == i ? true : false}
+        onSelect={this.setPrio}
+      >
+        {i}
+      </MenuItem>
+    )
     return (
       <div>
-        <Button bsStyle='link' onClick={this.download}>{f.path}</Button> {`progress: ${toPerc(f.progress)}`}
+        <Button bsStyle='link' href={`http://localhost:8412/dl/${f.id}`}>{f.path}</Button>
+        {`progress: ${toPerc(f.progress)}`}
+        <br />
+        <DropdownButton title="Priority" id="dropdown-size-small">
+          {prios}
+        </DropdownButton>
+        <br />
+        <br />
       </div>
     );
+  }
+
+  setPrio(p) {
+    this.props.setPrio(this.props.file.id, p);
   }
 }
 
@@ -83,7 +105,7 @@ class Torrent extends Component {
 
     let files = [];
     this.props.app.torrent_files[t.id].forEach(id => {
-       peers.push(<File file={this.props.app.resources[id]} key={id} download={this.props.app.downloadFile} />);
+       peers.push(<File file={this.props.app.resources[id]} key={id} setPrio={this.props.app.setPrio} />);
     });
     return (
       <div>
