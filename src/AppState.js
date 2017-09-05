@@ -52,6 +52,13 @@ class AppState {
     this.torrent_uploads[ts] = file;
   }
 
+  uploadMagnet(url) {
+    this.ws.sendMsg({
+      type: "UPLOAD_MAGNET",
+      uri: url,
+    })
+  }
+
   downloadFile(id) {
     const ts = this.ws.sendMsg({
       type: "DOWNLOAD_FILE",
@@ -115,6 +122,9 @@ class AppState {
           const id = resource.id;
           for (const field in resource) {
             this.resources[id][field] = resource[field]
+            if (field == 'client_id') {
+              console.log(resource[field]);
+            }
           }
         })
         break;
@@ -232,10 +242,10 @@ class File {
 class Peer {
   @observable rate_up;
   @observable rate_down;
+  @observable client_id;
   torrent_id;
-  client_id;
   ip;
-  id
+  id;
 
   constructor(id) {
     this.id = id
