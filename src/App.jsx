@@ -1,6 +1,7 @@
 import React, { Component } from 'react';
-import { ButtonToolbar, DropdownButton, MenuItem, Input, Button, ProgressBar } from 'react-bootstrap';
+import { ButtonToolbar, DropdownButton, MenuItem, Col, Input, Button, ProgressBar, FormControl } from 'react-bootstrap';
 import { observer } from 'mobx-react';
+import peerid from 'bittorrent-peerid';
 import DevTools from 'mobx-react-devtools';
 
 function toInt(n){ return Math.round(Number(n)); };
@@ -20,7 +21,6 @@ function toPerc(n) {
 class File extends Component {
   constructor(props) {
     super(props);
-    console.log(props);
     this.download = this.download.bind(this)
     this.setPrio = this.setPrio.bind(this)
   }
@@ -68,9 +68,10 @@ class Peer extends Component {
 
   render() {
     const p = this.props.peer;
+
     return (
       <div>
-        Peer - {`DL ${bytesToSize(p.rate_down)}/s`} - {`UL ${bytesToSize(p.rate_up)}/s`}
+        {p.client_id ? peerid(p.client_id).client : ''} - {`DL ${bytesToSize(p.rate_down)}/s`} - {`UL ${bytesToSize(p.rate_up)}/s`}
       </div>
     );
   }
@@ -128,8 +129,13 @@ class App extends Component {
   constructor(props) {
     super(props);
     this.addTorrent = this.addTorrent.bind(this);
+    this.addMagnet = this.addMagnet.bind(this);
     this.upload = this.upload.bind(this);
     this.handleFile = this.handleFile.bind(this);
+    this.magnetChange = this.magnetChange.bind(this);
+    this.state = {
+      magnet: '',
+    };
   }
 
   render() {
@@ -148,9 +154,17 @@ class App extends Component {
     }
     return (
       <div>
-        <Button bsStyle='primary' onClick={this.addTorrent}>
-          Add Torrent
-        </Button>
+        <ButtonToolbar>
+          <Button bsStyle='primary' onClick={this.addTorrent}>
+            Add Torrent
+          </Button>
+          <Button bsStyle='primary' onClick={this.addMagnet}>
+            Add Magnet
+          </Button>
+          <Col xs={8} md={4}>
+            <FormControl type="text" value={this.state.magnet} onChange={this.magnetChange} />
+          </Col>
+        </ButtonToolbar>
         <br />
         <br />
         {`DL ${dl}/s - UL ${ul}/s`}
@@ -166,8 +180,11 @@ class App extends Component {
     );
   }
 
+  magnetChange(ev) {
+    this.setState({ magnet: ev.target.value })
+  }
+
   upload(ev) {
-    console.log(ev)
     this.props.appState.uploadTorrent(ev.target.result)
   }
 
@@ -180,6 +197,10 @@ class App extends Component {
 
   addTorrent() {
     document.getElementById('torrent-ul').click();
+  }
+
+  addMagnet() {
+    this.props.appState.uploadMagnet(this.state.magnet)
   }
 };
 
