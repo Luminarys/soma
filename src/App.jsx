@@ -43,12 +43,15 @@ class File extends Component {
     )
     return (
       <div>
-        <Button bsStyle='link' href={`http://localhost:8412/dl/${f.id}`}>{f.path}</Button>
-        {`progress: ${toPerc(f.progress)}`}
-        <br />
-        <DropdownButton title="Priority" id="dropdown-size-small">
-          {prios}
-        </DropdownButton>
+        <Col xs={6} md={4}>
+          <Button bsStyle='link' href={`http://localhost:8412/dl/${f.id}`}>{f.path}</Button>
+          {`progress: ${toPerc(f.progress)}`}
+        </Col>
+        <Col xs={6} md={4}>
+          <DropdownButton title="Priority" id="dropdown-size-small">
+            {prios}
+          </DropdownButton>
+        </Col>
         <br />
         <br />
       </div>
